@@ -1,0 +1,191 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  fullName      String
+  password      String // In production, this should be hashed
+  role          String   @default("user") // "user", "company", "government"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Profile relations
+  jobSeekerProfile JobSeekerProfile?
+  companyProfile   CompanyProfile?
+  governmentProfile GovernmentProfile?
+
+  // Relations
+  applications    Application[]
+  postedJobs      Job[] @relation("JobPoster")
+
+  @@index([email])
+  @@index([role])
+}
+
+model JobSeekerProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Personal Information
+  phone             String?
+  dateOfBirth       DateTime?
+  address           String?
+  city              String?
+  country           String?
+  bio               String?
+  profileImage      String?
+  
+  // Professional Information
+  currentPosition   String?
+  currentCompany    String?
+  yearsOfExperience Int?
+  skills            String? // JSON string array of skills
+  education         String?
+  
+  // Documents
+  cvUrl             String?
+  graduationCertificateUrl String? // Tempo - University graduation certificate
+  
+  // KYC Verification (Ethiopian System)
+  nationalId        String?  // Ethiopian National ID
+  passportNumber    String?  // Passport number (for foreigners)
+  idType            String?  // "national_id" or "passport"
+  idFrontUrl        String?  // Front side of ID/Passport
+  idBackUrl         String?  // Back side of ID/Passport
+  kycStatus         String   @default("PENDING") // "PENDING", "VERIFIED", "REJECTED"
+  kycVerifiedAt     DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([kycStatus])
+}
+
+model CompanyProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Company Information
+  companyName       String
+  phone             String?
+  website           String?
+  address           String?
+  city              String?
+  country           String?
+  industry          String?
+  companySize       String? // e.g., "1-10", "11-50", "51-200", etc.
+  description       String?
+  logoUrl           String?
+  
+  // Verification & Subscription
+  verificationStatus String @default("PENDING") // "PENDING", "VERIFIED", "REJECTED"
+  verifiedAt        DateTime?
+  subscriptionStatus String @default("FREE") // "FREE", "BASIC", "PREMIUM", "ENTERPRISE"
+  subscriptionExpiresAt DateTime?
+  
+  // Business Documents
+  registrationNumber String?
+  taxId             String?
+  businessLicenseUrl String?
+  verificationDocUrl String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([verificationStatus])
+  @@index([subscriptionStatus])
+}
+
+model GovernmentProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Government Information
+  department        String
+  position          String
+  office            String?
+  phone             String?
+  address           String?
+  city              String?
+  country           String?
+  employeeId        String?
+  profileImage      String?
+  
+  // Verification
+  verificationStatus String @default("PENDING") // "PENDING", "VERIFIED", "REJECTED"
+  verifiedAt        DateTime?
+  verificationDocUrl String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([verificationStatus])
+}
+
+model Job {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  companyId     String
+  company       User     @relation("JobPoster", fields: [companyId], references: [id], onDelete: Cascade)
+  
+  location      String
+  salary        String?
+  salaryType    String? // "Monthly", "Annual", etc.
+  type          String // "Full Time", "Part Time", "Contract"
+  
+  requirements  String?
+  education     String?
+  experience    String?
+  vacancies     Int      @default(1)
+  
+  postedDate    DateTime @default(now())
+  deadline      DateTime?
+  isActive      Boolean  @default(true)
+  
+  applications  Application[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([isActive])
+}
+
+model Application {
+  id            String   @id @default(cuid())
+  jobId         String
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  applicantId   String
+  applicant     User     @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  
+  status        String @default("PENDING") // "PENDING", "REVIEWING", "ACCEPTED", "REJECTED"
+  coverLetter   String?
+  cvUrl         String?
+  
+  appliedAt     DateTime @default(now())
+  reviewedAt    DateTime?
+  updatedAt     DateTime @updatedAt
+
+  @@unique([jobId, applicantId])
+  @@index([jobId])
+  @@index([applicantId])
+  @@index([status])
+}
+
